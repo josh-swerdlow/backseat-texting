@@ -95,15 +95,14 @@ if message := st.chat_input():
             for message in current_message_context:
               messages.append(json_message_to_class(message))
             
-            current_summary = generate_summary(current_summary, messages)
-            
             # last 
             # send the last message
             comment = generate_response(current_summary, [json_message_to_class(new_message)], 7)
             st.write(comment)
         current_message_context.append(new_message)
-        if len(current_message_context > 5):
+        if len(current_message_context) > 5:
             current_message_context.pop()
+        current_summary = generate_summary(current_summary, messages)
 
     # Recv response
     with st.chat_message("Christina"):
