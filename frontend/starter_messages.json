@@ -1,0 +1,22 @@
+[
+    {
+        "role": "friend1",
+        "content": "Hey! Are you coming to the game night tomorrow?"
+    },
+    {
+        "role": "friend2",
+        "content": "Hey! I’m not sure yet. I have a lot of work to catch up on. What time does it start?"
+    },
+    {
+        "role": "friend1",
+        "content": "It starts at 7 PM. But no pressure! We’re just playing some casual board games."
+    },
+    {
+        "role": "friend2",
+        "content": "That sounds fun! I’ll try to make it, but if I’m late, just start without me."
+    },
+    {
+        "role": "friend1",
+        "content": "No worries at all. Just come if you can. We’ll save you a spot!"
+    }
+]
