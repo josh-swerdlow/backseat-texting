@@ -2,7 +2,11 @@ import streamlit as st
 import random
 import time
 import json
+from backend.main import generate_summary, generate_response, Message
+from datetime import datetime
 
+current_summary = ""
+current_message_context = []
 starter_text = """
 [
   {
@@ -28,6 +32,9 @@ starter_text = """
 ]
 """
 
+def json_message_to_class(json_message):
+  return Message(role=json_message["role"], content=json_message["content"], timestamp=datetime.now())
+
 # Streamed response emulator
 def response_generator():
     response = random.choice(
@@ -37,10 +44,10 @@ def response_generator():
             "Do you need help?",
         ]
     )
-    for word in response.split():
-        yield word + " "
-        time.sleep(0.05)
-
+    # for word in response.split():
+    #     yield word + " "
+    #     time.sleep(0.05)
+    return response
 # Set page layout to wide
 st.set_page_config(layout="wide")
 
@@ -74,18 +81,32 @@ if message := st.chat_input():
 
     # Send message
     with st.chat_message("Josh"):
-        st.session_state.messages.append({"role": "J", "content": message})
+        new_message = {"role": "J", "content": message}
+        st.session_state.messages.append(new_message)
         st.markdown(message)
+
+      # Send comment back on events
+        with st.sidebar:
+            st.header("Backseat Texter")
+
+            # Generate message class
+            messages = []
+            
+            for message in current_message_context:
+              messages.append(json_message_to_class(message))
+            
+            current_summary = generate_summary(current_summary, messages)
+            
+            # last 
+            # send the last message
+            comment = generate_response(current_summary, [json_message_to_class(new_message)], 7)
+            st.write(comment)
+        current_message_context.append(new_message)
+        if len(current_message_context > 5):
+            current_message_context.pop()
 
     # Recv response
     with st.chat_message("Christina"):
-        response = st.write_stream(response_generator())
+        response = st.write(response_generator())
         st.session_state.messages.append({"role": "C", "content": response})
 
-# Send comment back on events
-with st.sidebar:
-    st.header("Backseat Texter")
-
-    # Fetch comment
-    comment = "ugh what a bad response"
-    st.write(comment)

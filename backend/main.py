@@ -10,18 +10,20 @@ client = OpenAI()
 @dataclass
 class Message:
     content: str
-    sender: str
-    timestamp: datetime
+    role: str
+    timestamp: Optional[datetime] = None
     isTexter: Optional[bool] = False
     
 
-def serialize_messages(messages, include_sender=True):
+def serialize_messages(messages, include_role=True):
     serialized_msgs = ""
     for message in messages:
-        if include_sender:
-            serialized_msgs += f'{message.timestamp} - {message.sender}: {message.content}\n'
+        if include_role:
+            # serialized_msgs += f'{message.timestamp} - {message.role}: {message.content}\n'
+            serialized_msgs += f'{message.role}: {message.content}\n'
         else:
-            serialized_msgs += f'{message.timestamp}: {message.content}\n'
+            # serialized_msgs += f'{message.timestamp}: {message.content}\n'
+            serialized_msgs += f'{message.content}\n'
     return serialized_msgs
 
 def generate_summary(previous_summary, past_messages):
@@ -86,18 +88,18 @@ Edits:
     return parsed_lines[r]
 
 messages = [
-    Message(content="Dogeeeee", sender="Josh", timestamp = datetime.datetime.now() - datetime.timedelta(minutes=5)),
-    Message(content="I’m going through our Spotify blend and all ur music is so nostalgic", sender="Josh", timestamp = datetime.datetime.now() - datetime.timedelta(minutes=4)),
-    Message(content="I’ve never heard it before but it sounds like it was from a before time", sender="Josh", timestamp = datetime.datetime.now() - datetime.timedelta(minutes=3)),
-    Message(content="Or rather slow", sender="Josh", timestamp = datetime.datetime.now() - datetime.timedelta(minutes=3)),
-    Message(content="haha i think i was listening to a lot of pensive / folksy music", sender="Christina", timestamp = datetime.datetime.now() - datetime.timedelta(minutes=2)),
-    Message(content="lol all of our shared songs are just the ones played on our roadtrip", sender="Christina", timestamp = datetime.datetime.now() - datetime.timedelta(minutes=1)),
+    Message(content="Dogeeeee", role="Josh", timestamp = datetime.datetime.now() - datetime.timedelta(minutes=5)),
+    Message(content="I’m going through our Spotify blend and all ur music is so nostalgic", role="Josh", timestamp = datetime.datetime.now() - datetime.timedelta(minutes=4)),
+    Message(content="I’ve never heard it before but it sounds like it was from a before time", role="Josh", timestamp = datetime.datetime.now() - datetime.timedelta(minutes=3)),
+    Message(content="Or rather slow", role="Josh", timestamp = datetime.datetime.now() - datetime.timedelta(minutes=3)),
+    Message(content="haha i think i was listening to a lot of pensive / folksy music", role="Christina", timestamp = datetime.datetime.now() - datetime.timedelta(minutes=2)),
+    Message(content="lol all of our shared songs are just the ones played on our roadtrip", role="Christina", timestamp = datetime.datetime.now() - datetime.timedelta(minutes=1)),
 ]
 
 summary = generate_summary("", messages)
 user_messages = [
-     Message(content="hjmmmm", sender="Christina", timestamp = datetime.datetime.now() - datetime.timedelta(minutes=5)),
-    Message(content="i don't know????", sender="Christina", timestamp = datetime.datetime.now() - datetime.timedelta(minutes=4)),
-    Message(content="i don't know??", sender="Christina", timestamp = datetime.datetime.now() - datetime.timedelta(minutes=3)),
+     Message(content="hjmmmm", role="Christina", timestamp = datetime.datetime.now() - datetime.timedelta(minutes=5)),
+    Message(content="i don't know????", role="Christina", timestamp = datetime.datetime.now() - datetime.timedelta(minutes=4)),
+    Message(content="i don't know??", role="Christina", timestamp = datetime.datetime.now() - datetime.timedelta(minutes=3)),
 ]
 response = generate_response(summary, user_messages, 7)
