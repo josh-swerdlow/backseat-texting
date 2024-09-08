@@ -1,9 +1,16 @@
 import streamlit as st
 import random
-import time
 import json
 from backend.main import generate_summary, generate_response, Message
-from datetime import datetime
+from datetime import datetime, timedelta
+import pygame
+from text_to_speech import audio
+import time
+
+USE_API = False
+
+# Initialize pygame mixer
+pygame.mixer.init()
 
 current_summary = ""
 current_message_context = []
@@ -32,8 +39,14 @@ starter_text = """
 ]
 """
 
+
 def json_message_to_class(json_message):
-  return Message(role=json_message["role"], content=json_message["content"], timestamp=datetime.now())
+    return Message(
+        role=json_message["role"],
+        content=json_message["content"],
+        timestamp=datetime.now(),
+    )
+
 
 # Streamed response emulator
 def response_generator():
@@ -44,10 +57,9 @@ def response_generator():
             "Do you need help?",
         ]
     )
-    # for word in response.split():
-    #     yield word + " "
-    #     time.sleep(0.05)
     return response
+
+
 # Set page layout to wide
 st.set_page_config(layout="wide")
 
@@ -60,24 +72,40 @@ if "messages" not in st.session_state:
     for msg in dump:
         st.session_state.messages.append(msg)
 
-# Define a function to simulate typing pause detection
-def detect_typing_pause(text_input):
-    # Add logic to simulate typing pause detection
-    if text_input:
-        st.session_state["input_value"] = text_input
-        st.write("User paused typing. Current text:", text_input)
-    else:
-        st.session_state["input_value"] = ""
+# Initialize typing state tracking
+if "last_input" not in st.session_state:
+    st.session_state.last_input = ""
+    st.session_state.last_input_time = datetime.now()
 
 # Display chat messages from history on app rerun
 for message in st.session_state.messages:
     with st.chat_message(message["role"]):
         st.markdown(message["content"])
 
+# Text input for user response
+message = st.text_input(
+    label="Response form", label_visibility="hidden", key="input_value"
+)
+
+# Detect typing and pause
+current_time = datetime.now()
+current_input = st.session_state.get("input_value", "")
+
+# Check for pause in typing
+if current_input != st.session_state.last_input:
+    # User is typing
+    st.write("User is typing...")
+    st.session_state.last_input = current_input
+    st.session_state.last_input_time = current_time
+else:
+    # Check if pause has been detected (1-second threshold)
+    time_since_last_input = current_time - st.session_state.last_input_time
+    if time_since_last_input > timedelta(seconds=1) and current_input:
+        st.write("User paused typing. Current text:", current_input)
+
 # Accept user input
-if message := st.chat_input():
-    # Simulate typing pause detection
-    detect_typing_pause(message)
+if message:
+    print(f"Text detected: {message}")
 
     # Send message
     with st.chat_message("Josh"):
@@ -85,27 +113,42 @@ if message := st.chat_input():
         st.session_state.messages.append(new_message)
         st.markdown(message)
 
-      # Send comment back on events
-        with st.sidebar:
-            st.header("Backseat Texter")
+    # Send comment back on events
+    with st.sidebar:
+        st.header("Backseat Texter")
 
-            # Generate message class
-            messages = []
-            
-            for message in current_message_context:
-              messages.append(json_message_to_class(message))
-            
-            # last 
-            # send the last message
-            comment = generate_response(current_summary, [json_message_to_class(new_message)], 7)
-            st.write(comment)
-        current_message_context.append(new_message)
-        if len(current_message_context) > 5:
-            current_message_context.pop()
-        current_summary = generate_summary(current_summary, messages)
+        # Generate message class
+        messages = [json_message_to_class(msg) for msg in current_message_context]
 
-    # Recv response
+        # Generate a response or comment
+        comment = (
+            generate_response(current_summary, [json_message_to_class(new_message)], 7)
+            if USE_API
+            else "This is a comment"
+        )
+
+        st.write(comment)
+
+        # Play audio if USE_API is enabled
+        if USE_API:
+            audio(comment)
+            pygame.mixer.music.load("speech.mp3")
+            pygame.mixer.music.play()
+            while pygame.mixer.music.get_busy():
+                time.sleep(1)
+
+    # Update message context
+    current_message_context.append(new_message)
+    if len(current_message_context) > 5:
+        current_message_context.pop()
+
+    # Update summary if using API
+    current_summary = (
+        generate_summary(current_summary, messages) if USE_API else "This is a summary"
+    )
+
+    # Display response
     with st.chat_message("Christina"):
-        response = st.write(response_generator())
-        st.session_state.messages.append({"role": "C", "content": response})
-
+        comment = response_generator() if USE_API else "Ugh, such a weird thing to say."
+        st.session_state.messages.append({"role": "C", "content": comment})
+        st.write(comment)
