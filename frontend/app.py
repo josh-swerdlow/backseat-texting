@@ -10,9 +10,9 @@ Demo Requirements
 [x] Log time delta in message
 [x] Monitor event queue to any mistakes
 [x] Monitor msg history for any duplicates
-[ ] How should responses work (MVP)
-[ ] Generate responses
-[ ] Upgrade the chat sidebar to incorproate responses
+[x] How should responses work (MVP)
+[x] Generate responses
+[x] Upgrade the chat sidebar to incorproate responses
 [ ] Hook up to API
 
 Nice to Have

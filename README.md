@@ -3,13 +3,19 @@ Have you ever wanted an AI agent to look over all of your texts as your typing t
 
 # Quick Start
 
-
+python frontend/app.py
 
 # Frontend
 
-Flask client rendered onto html/js.
+css/html/js
 
 # Backend
+
+Flask server handles updates for
+
+Typing (adding, deleting, pausing, stops)
+Messaging (sending)
+Responses (long pause with no text, long pause after send)
 
 ## Infra
 
