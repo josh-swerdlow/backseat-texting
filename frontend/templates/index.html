@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Chat Application</title>
+    <title>Backseat Chatter</title>
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -21,6 +21,14 @@
             border-right: 1px solid #ddd;
         }
 
+        .backseat-response-text {
+            width: 100%;
+            padding: 10px;
+            background-color: #f0f0f0;
+            min-height: 40px; /* Ensure it has some height */
+            color: #040404; /* Text color */
+        }
+
         #chat {
             width: 75%;
             padding: 20px;
@@ -28,6 +36,10 @@
             display: flex;
             flex-direction: column;
             border-left: 1px solid #ddd;
+            font: 16px/1.5 sans-serif;
+
+            --rad: 20px;
+            --rad-sm: 3px;
         }
 
         #messages {
@@ -36,11 +48,43 @@
         }
 
         .message {
-            margin-bottom: 10px;
+            position: relative;
+            max-width: fit-content;
+            padding: 7px 15px;
+            margin-bottom: 2px;
         }
 
-        .message.user {
-            text-align: right;
+        .message.sent {
+            background-color: #007bff;
+            color: white;
+            border-radius: var(--rad);
+            /* moves it to the right */
+            margin-left: auto;
+        }
+
+        .message.received {
+            background-color: #f1f1f1;
+            color: black;
+            border-radius: var(--rad) var(--rad) var(--rad) var(--rad);
+            /* moves it to the left */
+            margin-right: auto;
+        }
+
+        .message::before {
+            content: attr(data-time);
+            font-size: 0.8rem;
+            position: absolute;
+            bottom: 100%;
+            color: #888;
+            white-space: nowrap;
+        }
+
+        .message.sent::before {
+            right: 15px;
+        }
+
+        .message.received::before {
+            left: 15px;
         }
 
         #input-container {
@@ -71,11 +115,18 @@
 
 <body>
     <div id="sidebar">
-        <h2>Chat Sidebar</h2>
-        <p>Some descriptive text or additional information can be displayed here.</p>
+        <h2>Backseat Chatter</h2>
+        <div id="backseat response"></div>
+        <div id="backseat-response-container" type="text" class="backseat-response-text">
+            Waiting for conversation to begin...
+        </div>
     </div>
     <div id="chat">
-        <div id="messages"></div>
+        <div id="messages">
+            <div data-time="10:00 AM" class="message sent"> Hello </div>
+            <div data-time="10:03 AM" class="message received"> Goodbye! </div>
+        </div>
+
         <div id="input-container">
             <input id="message-input" type="text" placeholder="Type a message..." />
             <button id="send-button">Send</button>
@@ -91,19 +142,41 @@
         const sendButton = document.getElementById('send-button');
         const messagesContainer = document.getElementById('messages');
         const typingStatus = document.getElementById('typing-status');
+        const backseatContainer = document.getElementById("backseat-response-container")
 
         let pauseTimer;
         let stopTimer
+        let fullStopTimer;
         const pauseDelay = 1000;
-        const stopDelay = 10 * pauseDelay;
+        const stopDelay = 3 * pauseDelay;
+        const fullStopDelay = stopDelay;
+
+        const TYPING_STATUS = Object.freeze({
+            ADDING: "adding",
+            DELETING: "deleting",
+            PAUSED: "paused",
+            STOPPED: "stopped",
+            FULL_STOP: "full stop",
+            SENT: "sent"
+        })
+
+        function backseatText(content) {
+            console.log("Backseat is typing...")
+            backseatContainer.textContent = content
+        }
 
         function appendMessage(role, content) {
+            console.log(role, content)
             const messageElement = document.createElement('div');
             messageElement.classList.add('message');
             if (role === 'user') {
-                messageElement.classList.add('user');
+                messageElement.classList.add('sent');
+            }
+            if (role === 'responder') {
+                messageElement.classList.add('received');
             }
             messageElement.textContent = content;
+            console.log(messageElement)
             messagesContainer.appendChild(messageElement);
             messagesContainer.scrollTop = messagesContainer.scrollHeight;
         }
@@ -116,24 +189,20 @@
 
         // Handle typing
         socket.on('typing', (data) => {
-            if (data.typing) {
-                if (data.action == 'adding') {
-                    typingStatus.textContent = `${data.role} is typing...`
-                } else if (data.action == 'deleting') {
-                    typingStatus.textContent = `${data.role} is deleting...`
-                } else {
-                    console.warn("Handler action note supported: ", data.action)
-                }
-            } else if (!data.stopped) {
-                typingStatus.textContent = `${data.role} is paused...`
-            } else {
-                typingStatus.textContent = `${data.role} is stopped...`
-            }
+            typingStatus.textContent = `${data.role} is ${data.action}...`
         });
 
-        // Handle deletions
-        socket.on('delete', (data) => {
-            typingStatus.textContent = `${data.role} is deleting text...`;
+        // Handle backseat response
+        socket.on('backseat-response', (response) => {
+            backseatText(response.content)
+            typingStatus.textContent = `${response.role} opined on your texts...`
+        })
+
+        // Handle response to texts
+        socket.on('user-response', (response) => {
+            console.log("Recv from bkend: ", response.role, response.content)
+            appendMessage(response.role, response.content)
+            typingStatus.textContent = `${response.role} sent a message...`
         })
 
         // Listen for typing changes (i.e. pauses, stop, typing, deleting)
@@ -146,35 +215,58 @@
             // Check if the text length has decreased (indicating deletion)
             if (currentLength < previousLength) {
                 console.log('User is deleting text');
-                socket.emit('typing', { role: 'user', action: 'deleting', typing: true, stopped: false, content: messageInput.value });
+                socket.emit('typing', { role: 'user', action: TYPING_STATUS.DELETING, content: messageInput.value });
             } else if (currentLength > previousLength) {
-                socket.emit('typing', { role: 'user', action: 'adding', typing: true, stopped: false });
+                console.log('User is typing text');
+                socket.emit('typing', { role: 'user', action: TYPING_STATUS.ADDING, content: messageInput.value});
             }
 
             // Update the previous length
             previousLength = currentLength;
 
-
             clearTimeout(pauseTimer);
             pauseTimer = setTimeout(() => {
-                socket.emit('typing', { role: 'user', typing: false, stopped: false });
+                console.log('User is paused');
+                socket.emit('typing', { role: 'user', action: TYPING_STATUS.PAUSED, content: messageInput.value});
             }, pauseDelay);
 
             clearTimeout(stopTimer)
             stopTimer = setTimeout(() => {
-                socket.emit('typing', { role: 'user', typing: false, stopped: true });
+                console.log(currentLength)
+                if (currentLength == 0) {
+                    console.log('User has full stopped. Responding.')
+                    socket.emit('response', {role: 'user', action: TYPING_STATUS.FULL_STOP, content: messageInput.value})
+                } else {
+                    console.log('User is stopped');
+                    socket.emit('typing', { role: 'user', action: TYPING_STATUS.STOPPED, content: messageInput.value});
+                }
             }, stopDelay);
         });
 
         // Listen for message sends
+        // Re-route 'enter' keys in the input field to send button clicks
+        messageInput.addEventListener("keypress", (event) => {
+            if (event.key === "Enter") {
+                event.preventDefault();
+                sendButton.click();
+            }
+        });
+
         sendButton.addEventListener('click', () => {
-            console.log("Listening for submissions...")
+            console.log("User sent text: ", messageInput.value)
             const message = messageInput.value;
             if (message.trim() !== '') {
-                socket.emit('message', { role: 'user', content: message });
-                appendMessage('user', message);
+                socket.emit('message', { role: 'user', action: TYPING_STATUS.SENT, content: message });
                 messageInput.value = '';
                 typingStatus.textContent = '';
+            }
+            console.log('Checking msg: ', messageInput.value)
+            if (messageInput.value === '') {
+                clearTimeout(fullStopTimer)
+                fullStopTimer = setTimeout(() => {
+                    console.log("User has full stopped. Responding.")
+                    socket.emit('response', { role: 'user', action: TYPING_STATUS.FULL_STOP, content: messageInput.value })
+                }, fullStopDelay)
             }
         });
 

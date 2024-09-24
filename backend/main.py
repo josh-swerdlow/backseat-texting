@@ -13,7 +13,7 @@ class Message:
     role: str
     timestamp: Optional[datetime] = None
     isTexter: Optional[bool] = False
-    
+
 
 def serialize_messages(messages, include_role=True):
     serialized_msgs = ""
